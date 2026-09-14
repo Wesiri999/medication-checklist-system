@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Medication Checklist — ศูนย์ดูแลผู้สูงอายุ</title>
+<style>
+:root{--bg:#f5f7f9;--card:#fff;--text:#17324d;--muted:#6b7b8c;--primary:#087f78;--danger:#d83a3a;--warn:#e59b17;--ok:#168a52;--border:#dfe6eb}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans Thai",sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#087f78,#0b9b90);color:white;padding:18px 22px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:21px} header small{opacity:.9}
+nav{display:flex;gap:8px;overflow:auto;padding:10px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:73px;z-index:4}
+nav button{border:0;background:#eef5f5;color:#245c59;padding:10px 14px;border-radius:10px;white-space:nowrap;font-weight:700}
+nav button.active{background:var(--primary);color:#fff}
+main{max-width:1200px;margin:auto;padding:18px}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 2px 8px #17324d08}
+.stat b{display:block;font-size:30px;margin-top:5px}.muted{color:var(--muted);font-size:13px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.toolbar input,.toolbar select,.form input,.form select,.form textarea{padding:10px;border:1px solid var(--border);border-radius:9px;background:white}
+table{width:100%;border-collapse:collapse;background:white;border-radius:14px;overflow:hidden} th,td{padding:11px;border-bottom:1px solid var(--border);text-align:left;font-size:14px} th{background:#f0f5f6}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800}.ok{background:#e3f6ec;color:#147345}.warn{background:#fff3d9;color:#9a6500}.danger{background:#fde8e8;color:#a51e1e}.pending{background:#edf1f4;color:#526272}
+button.primary,button.dangerBtn,button.secondary{border:0;border-radius:10px;padding:10px 13px;font-weight:800;cursor:pointer}.primary{background:var(--primary);color:white}.dangerBtn{background:#d83a3a;color:white}.secondary{background:#edf1f4;color:#30465a}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:15px;z-index:20}.modal.open{display:flex}.modalbox{background:white;border-radius:18px;max-width:560px;width:100%;padding:20px;max-height:90vh;overflow:auto}
+.right{display:flex;justify-content:flex-end;gap:8px}.form{display:grid;gap:10px}.check{display:flex;gap:10px;align-items:flex-start;padding:10px;background:#f7fafb;border-radius:10px}.notice{padding:13px;border-radius:12px;margin:10px 0}.notice.d{background:#fde8e8}.notice.w{background:#fff3d9}.notice.g{background:#e6f7ee}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)} th:nth-child(4),td:nth-child(4){display:none}}
+@media(max-width:520px){.grid{grid-template-columns:1fr 1fr} main{padding:12px} th,td{padding:8px;font-size:12px}}
+</style>
+</head>
+<body>
+<header><h1>💊 Medication Checklist</h1><small>ระบบติดตามการให้ยาสำหรับศูนย์ดูแลผู้สูงอายุ</small></header>
+<nav id="nav">
+<button data-view="dashboard" class="active">ภาพรวม</button>
+<button data-view="checklist">Checklist ให้ยา</button>
+<button data-view="residents">ผู้สูงอายุ</button>
+<button data-view="meds">รายการยา</button>
+<button data-view="reports">รายงาน</button>
+<button data-view="settings">ตั้งค่า</button>
+</nav>
+<main>
+<section id="dashboard" class="view active">
+<h2>ภาพรวมวันนี้</h2><div id="alerts"></div><div class="grid" id="stats"></div>
+<div class="card" style="margin-top:14px"><h3>รายการที่ต้องติดตาม</h3><div id="urgent"></div></div>
+</section>
+
+<section id="checklist" class="view">
+<h2>Checklist การให้ยา</h2>
+<div class="toolbar"><select id="roundFilter"><option value="all">ทุกช่วงเวลา</option><option>เช้า 08:00</option><option>กลางวัน 12:00</option><option>เย็น 18:00</option><option>ก่อนนอน 21:00</option></select><button class="primary" onclick="seedDemo()">รีเฟรชรายการ</button></div>
+<div class="card"><table><thead><tr><th>ผู้สูงอายุ</th><th>ยา</th><th>เวลา</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody id="checkRows"></tbody></table></div>
+</section>
+
+<section id="residents" class="view">
+<h2>ผู้สูงอายุ</h2><div class="toolbar"><button class="primary" onclick="openResident()">+ เพิ่มผู้สูงอายุ</button></div>
+<div class="card"><table><thead><tr><th>ชื่อ</th><th>ห้อง</th><th>แพ้ยา</th><th>สถานะ</th></tr></thead><tbody id="residentRows"></tbody></table></div>
+</section>
+
+<section id="meds" class="view">
+<h2>รายการยา / ตารางยา</h2><div class="toolbar"><button class="primary" onclick="openMed()">+ เพิ่มรายการยา</button></div>
+<div class="card"><table><thead><tr><th>ผู้สูงอายุ</th><th>ยา</th><th>ขนาด</th><th>เวลา</th><th>วิธี/หมายเหตุ</th></tr></thead><tbody id="medRows"></tbody></table></div>
+</section>
+
+<section id="reports" class="view">
+<h2>รายงาน</h2><div class="grid" id="reportStats"></div>
+<div class="card" style="margin-top:14px"><h3>ประวัติการบันทึก</h3><table><thead><tr><th>เวลา</th><th>ผู้สูงอายุ</th><th>ยา</th><th>สถานะ</th><th>ผู้บันทึก</th></tr></thead><tbody id="logRows"></tbody></table></div>
+</section>
+
+<section id="settings" class="view">
+<h2>ตั้งค่าการเตือน</h2><div class="card form">
+<label>ชื่อผู้ปฏิบัติงานเริ่มต้น <input id="staffName" value="พนักงานเวรเช้า"></label>
+<label>เตือนเมื่อเกินเวลา (นาที) <input id="lateMin" type="number" value="10"></label>
+<label>แจ้งหัวหน้าเวรเมื่อเกิน (นาที) <input id="escalateMin" type="number" value="15"></label>
+<label>แจ้งผู้จัดการเมื่อเกิน (นาที) <input id="managerMin" type="number" value="30"></label>
+<button class="primary" onclick="saveSettings()">บันทึกการตั้งค่า</button>
+<p class="muted">ต้นแบบนี้เก็บข้อมูลในเบราว์เซอร์เครื่องนี้ (localStorage) ยังไม่ใช่ฐานข้อมูลกลางสำหรับใช้งานหลายเครื่อง</p>
+</div></section>
+</main>
+
+<div class="modal" id="modal"><div class="modalbox" id="modalBox"></div></div>
+
+<script>
+const KEY='eldercare_med_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{
+residents:[
+{id:1,name:'คุณสมชาย ใจดี',room:'101',allergy:'ไม่มี',active:true},
+{id:2,name:'คุณยายคำ',room:'102',allergy:'Penicillin',active:true},
+{id:3,name:'คุณลุงประสิทธิ์',room:'103',allergy:'ไม่มี',active:true},
+{id:4,name:'คุณป้าบัว',room:'104',allergy:'ไม่มี',active:true}
+],
+meds:[
+{id:1,residentId:1,name:'Amlodipine',dose:'5 mg 1 เม็ด',time:'08:00',round:'เช้า 08:00',note:'หลังอาหารเช้า'},
+{id:2,residentId:1,name:'Metformin',dose:'500 mg 1 เม็ด',time:'18:00',round:'เย็น 18:00',note:'หลังอาหารเย็น'},
+{id:3,residentId:2,name:'ยาประจำ',dose:'ตามคำสั่งยา',time:'08:00',round:'เช้า 08:00',note:'ตรวจคำสั่งยาก่อนให้'},
+{id:4,residentId:3,name:'ยาประจำ',dose:'ตามคำสั่งยา',time:'12:00',round:'กลางวัน 12:00',note:'หลังอาหาร'},
+{id:5,residentId:4,name:'Amlodipine',dose:'5 mg 1 เม็ด',time:'08:00',round:'เช้า 08:00',note:'ตามคำสั่งยา'}
+],
+logs:[],
+settings:{staff:'พนักงานเวรเช้า',late:10,escalate:15,manager:30}
+};
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function rid(id){return db.residents.find(x=>x.id==id)}
+function today(){return new Date().toISOString().slice(0,10)}
+function keyFor(m){return today()+'_'+m.id}
+function logFor(m){return db.logs.find(x=>x.key===keyFor(m))}
+function status(m){
+ const l=logFor(m); if(l) return l.status;
+ const now=new Date(), [h,mi]=m.time.split(':').map(Number); const t=new Date();t.setHours(h,mi,0,0);
+ const diff=Math.round((now-t)/60000);
+ if(diff>=db.settings.manager) return 'ยังไม่ได้ให้';
+ if(diff>=db.settings.escalate) return 'ต้องแจ้งหัวหน้า';
+ if(diff>=db.settings.late) return 'ล่าช้า';
+ return 'รอดำเนินการ';
+}
+function badge(s){let c=s==='ให้ยาแล้ว'?'ok':(s==='ล่าช้า'?'warn':(s==='ยังไม่ได้ให้'||s==='ต้องแจ้งหัวหน้า'?'danger':'pending'));return `<span class="badge ${c}">${s}</span>`}
+function render(){
+ document.getElementById('stats').innerHTML=statsHTML();
+ document.getElementById('urgent').innerHTML=urgentHTML();
+ document.getElementById('checkRows').innerHTML=checkHTML();
+ document.getElementById('residentRows').innerHTML=db.residents.map(r=>`<tr><td>${r.name}</td><td>${r.room}</td><td>${r.allergy}</td><td>${r.active?'พักอยู่':'ไม่ใช้งาน'}</td></tr>`).join('');
+ document.getElementById('medRows').innerHTML=db.meds.map(m=>{let r=rid(m.residentId);return `<tr><td>${r?.name||'-'}</td><td>${m.name}</td><td>${m.dose}</td><td>${m.time}</td><td>${m.note}</td></tr>`}).join('');
+ let counts=count(); document.getElementById('reportStats').innerHTML=
+ [['ทั้งหมด',counts.total,'pending'],['ให้ยาแล้ว',counts.done,'ok'],['ล่าช้า',counts.late,'warn'],['ยังไม่ได้ให้/ต้องติดตาม',counts.danger,'danger']]
+ .map(x=>`<div class="card stat"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join('');
+ document.getElementById('logRows').innerHTML=db.logs.slice().reverse().map(l=>`<tr><td>${new Date(l.at).toLocaleString('th-TH')}</td><td>${l.resident}</td><td>${l.med}</td><td>${badge(l.status)}</td><td>${l.staff}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">ยังไม่มีประวัติ</td></tr>';
+}
+function count(){let a=db.meds.map(status), total=a.length;return {total,done:a.filter(x=>x==='ให้ยาแล้ว').length,late:a.filter(x=>x==='ล่าช้า').length,danger:a.filter(x=>x==='ยังไม่ได้ให้'||x==='ต้องแจ้งหัวหน้า').length}}
+function statsHTML(){let c=count();return [['ทั้งหมด',c.total,'pending'],['ให้แล้ว',c.done,'ok'],['ล่าช้า',c.late,'warn'],['ต้องติดตาม',c.danger,'danger']].map(x=>`<div class="card stat"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join('')}
+function urgentHTML(){let arr=db.meds.filter(m=>['ล่าช้า','ต้องแจ้งหัวหน้า','ยังไม่ได้ให้'].includes(status(m)));if(!arr.length)return '<div class="notice g">✅ ไม่มีรายการที่ต้องติดตาม</div>';return arr.map(m=>{let r=rid(m.residentId);return `<div class="notice ${status(m)==='ล่าช้า'?'w':'d'}"><b>${r.name}</b> ห้อง ${r.room} — ${m.name} รอบ ${m.time} ${badge(status(m))} <button class="secondary" onclick="give(${m.id})">ดำเนินการ</button></div>`}).join('')}
+function checkHTML(){let f=document.getElementById('roundFilter').value;return db.meds.filter(m=>f==='all'||m.round===f).map(m=>{let r=rid(m.residentId),s=status(m);return `<tr><td><b>${r.name}</b><br><span class="muted">ห้อง ${r.room}</span></td><td>${m.name}<br><span class="muted">${m.dose}</span></td><td>${m.time}</td><td>${badge(s)}</td><td>${s==='ให้ยาแล้ว'?'<span class="muted">บันทึกแล้ว</span>':`<button class="primary" onclick="give(${m.id})">บันทึกการให้ยา</button>`}</td></tr>`}).join('')}
+function give(id){
+ let m=db.meds.find(x=>x.id==id),r=rid(m.residentId);
+ document.getElementById('modalBox').innerHTML=`<h3>บันทึกการให้ยา</h3><p><b>${r.name}</b> ห้อง ${r.room}</p><p>${m.name} — ${m.dose} — ${m.time}</p>
+ <div class="check"><input type="checkbox" id="c1"> <label for="c1">ยืนยันถูกคน / ถูกยา / ถูกขนาด / ถูกเวลา / ถูกวิธี ตามคำสั่งยา</label></div>
+ <div class="toolbar"><button class="primary" onclick="complete(${id})">🟢 ให้ยาแล้ว</button><button class="secondary" onclick="exception(${id})">บันทึกว่าให้ไม่ได้</button><button class="secondary" onclick="closeModal()">ยกเลิก</button></div>`;
+ document.getElementById('modal').classList.add('open');
+}
+function complete(id){if(!document.getElementById('c1').checked){alert('กรุณายืนยันการตรวจสอบก่อนบันทึก');return}let m=db.meds.find(x=>x.id==id),r=rid(m.residentId);db.logs.push({key:keyFor(m),at:new Date().toISOString(),resident:r.name,med:m.name,status:'ให้ยาแล้ว',staff:db.settings.staff});save();closeModal();render()}
+function exception(id){let m=db.meds.find(x=>x.id==id),r=rid(m.residentId);document.getElementById('modalBox').innerHTML=`<h3>เหตุผลที่ให้ยาไม่ได้</h3><p><b>${r.name}</b> — ${m.name}</p><div class="form"><select id="ex"><option>ปฏิเสธยา</option><option>ให้ยาไม่ได้</option><option>อาเจียน</option><option>ยาไม่พร้อม</option><option>ไม่พบผู้สูงอายุ</option><option>อื่น ๆ</option></select><textarea id="note" placeholder="รายละเอียด / การดำเนินการ"></textarea><button class="dangerBtn" onclick="saveEx(${id})">บันทึกเหตุการณ์</button></div>`}
+function saveEx(id){let m=db.meds.find(x=>x.id==id),r=rid(m.residentId);db.logs.push({key:keyFor(m),at:new Date().toISOString(),resident:r.name,med:m.name,status:document.getElementById('ex').value,staff:db.settings.staff,note:document.getElementById('note').value});save();closeModal();render()}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+function openResident(){document.getElementById('modalBox').innerHTML=`<h3>เพิ่มผู้สูงอายุ</h3><div class="form"><input id="rn" placeholder="ชื่อ-นามสกุล"><input id="rr" placeholder="ห้อง"><input id="ra" placeholder="ประวัติแพ้ยา (ถ้ามี)"><button class="primary" onclick="addResident()">บันทึก</button></div>`;document.getElementById('modal').classList.add('open')}
+function addResident(){let n=document.getElementById('rn').value.trim();if(!n)return;db.residents.push({id:Date.now(),name:n,room:document.getElementById('rr').value,allergy:document.getElementById('ra').value||'ไม่ระบุ',active:true});save();closeModal();render()}
+function openMed(){let opts=db.residents.map(r=>`<option value="${r.id}">${r.name} ห้อง ${r.room}</option>`).join('');document.getElementById('modalBox').innerHTML=`<h3>เพิ่มรายการยา</h3><div class="form"><select id="mr">${opts}</select><input id="mn" placeholder="ชื่อยา"><input id="md" placeholder="ขนาดยา เช่น 5 mg 1 เม็ด"><input id="mt" type="time" value="08:00"><input id="mo" placeholder="วิธีใช้ / หมายเหตุ"><button class="primary" onclick="addMed()">บันทึก</button></div>`;document.getElementById('modal').classList.add('open')}
+function addMed(){let t=document.getElementById('mt').value, h=parseInt(t);let round=h<10?'เช้า ':h<15?'กลางวัน ':h<19?'เย็น ':'ก่อนนอน ';db.meds.push({id:Date.now(),residentId:+document.getElementById('mr').value,name:document.getElementById('mn').value,dose:document.getElementById('md').value,time:t,round:round+t,note:document.getElementById('mo').value});save();closeModal();render()}
+function seedDemo(){render()}
+function saveSettings(){db.settings.staff=document.getElementById('staffName').value;db.settings.late=+document.getElementById('lateMin').value;db.settings.escalate=+document.getElementById('escalateMin').value;db.settings.manager=+document.getElementById('managerMin').value;save();alert('บันทึกการตั้งค่าแล้ว');render()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');render()});
+document.getElementById('roundFilter').onchange=render;
+document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')closeModal()}
+document.getElementById('staffName').value=db.settings.staff;document.getElementById('lateMin').value=db.settings.late;document.getElementById('escalateMin').value=db.settings.escalate;document.getElementById('managerMin').value=db.settings.manager;
+render(); setInterval(render,60000);
+</script>
+</body></html>
